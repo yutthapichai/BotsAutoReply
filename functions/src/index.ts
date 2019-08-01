@@ -1,10 +1,11 @@
 import * as functions from 'firebase-functions';
 // import * as request from 'request';
 // import { config }  from '../config';
+import { flexMenuMsg } from '../flexmenu';
 
 
 //[1]เพิ่ม dialogflow-fulfillment library
-const { WebhookClient } = require('dialogflow-fulfillment');
+const { WebhookClient, Payload } = require('dialogflow-fulfillment');
 
 const region = "asia-east2";
 const runtimeOptions: any = {
@@ -17,7 +18,7 @@ export const webhook = functions
   .runWith(runtimeOptions)
   .https.onRequest(async(req, res) => {
     // console.log("LINE REQUEST BODY", JSON.stringify(req.body));
-    console.log("Dialogflow REQUEST BODY", JSON.stringify(req.body));
+    console.log("Dialogflow REQUEST BODY", flexMenuMsg);
 
     //[2] ประกาศ ตัวแปร agent
     const agent = new WebhookClient({ request: req, response: res });
@@ -25,7 +26,15 @@ export const webhook = functions
 
     //[4] ทำ function view menu เพื่อแสดงผลบางอย่างกลับไปที่หน้าจอของ bot
     const viewMenu = async (agents: any) => {
-      agent.add("นี่คือ Menu ที่มาจาก Fullfilment");
+        //[5] เพิ่ม flex message
+
+
+        //[6] ปรับการตอบกลับ ให้ตอบกลับผ่าน flex message ด้วย Payload
+        const payloadMsg = new Payload("LINE", flexMenuMsg, {
+          sendAsMessage: true
+        });
+        
+        return agent.add(payloadMsg);
     };
 
 
