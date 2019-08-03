@@ -1,11 +1,18 @@
 import * as functions from 'firebase-functions';
 // import * as request from 'request';
-// import { config }  from '../config';
+import { config }  from '../config';
 import { flexMenuMsg } from '../flexmenu';
-
 
 //[1]เพิ่ม dialogflow-fulfillment library
 const { WebhookClient, Payload } = require('dialogflow-fulfillment');
+import * as firebase from 'firebase-admin';
+
+firebase.initializeApp({
+  credential: firebase.credential.applicationDefault(),
+  databaseURL: config.databaseURL
+});
+
+const db = firebase.firestore();
 
 const region = "asia-east2";
 const runtimeOptions: any = {
@@ -13,28 +20,59 @@ const runtimeOptions: any = {
   memory: "2GB"
 };
 
-export const webhook = functions
-  .region(region)
-  .runWith(runtimeOptions)
-  .https.onRequest(async(req, res) => {
+export const webhook = functions.region(region).runWith(runtimeOptions).https.onRequest((req, res) => {
     // console.log("LINE REQUEST BODY", JSON.stringify(req.body));
-    console.log("Dialogflow REQUEST BODY", flexMenuMsg);
-
+    // console.log("Dialogflow REQUEST BODY", flexMenuMsg);
+    const _flexMenuMsg: any = flexMenuMsg;
     //[2] ประกาศ ตัวแปร agent
     const agent = new WebhookClient({ request: req, response: res });
 
 
     //[4] ทำ function view menu เพื่อแสดงผลบางอย่างกลับไปที่หน้าจอของ bot
-    const viewMenu = async (agents: any) => {
+    const viewMenu = (agents: any) => {
         //[5] เพิ่ม flex message
 
-
         //[6] ปรับการตอบกลับ ให้ตอบกลับผ่าน flex message ด้วย Payload
-        const payloadMsg = new Payload("LINE", flexMenuMsg, {
-          sendAsMessage: true
+        return db.collection('Menu').get().then(snapshot => {
+          snapshot.docs.forEach(doc => {
+            const data = doc.data();
+            const itemData = {            
+                "type": "box",
+                "layout": "baseline",
+                "action": {
+                  "type": "message",
+                  "label": data.name,
+                  "text": data.name
+                },
+                "contents": [
+                  {
+                    "type": "icon",
+                    "url": "https://scdn.line-apps.com/n/channel_devcenter/img/fx/restaurant_regular_32.png"
+                  },
+                  {
+                    "type": "text",
+                    "text": `${ data.price } บาท`,
+                    "flex": 0,
+                    "margin": "sm",
+                    "weight": "bold"
+                  },
+                  {
+                    "type": "text",
+                    "text": data.name,
+                    "size": "sm",
+                    "align": "end",
+                    "color": "#AAAAAA"
+                  }
+                ]
+            }
+            _flexMenuMsg.contents.body.contents[1].contents.push(itemData);
+          })
+
+          const payloadMsg = new Payload("LINE", _flexMenuMsg, {
+            sendAsMessage: true
+          });
+          return agent.add(payloadMsg);
         });
-        
-        return agent.add(payloadMsg);
     };
 
 
